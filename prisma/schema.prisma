@@ -1,0 +1,104 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  avatar    String?
+  status    String?
+  isVerified Boolean  @default(false)
+  otp       String?
+  otpExpires DateTime?
+  lastSeen  DateTime @default(now())
+  isOnline  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sentRequests   FriendRequest[] @relation("sentRequests")
+  receivedRequests FriendRequest[] @relation("receivedRequests")
+  channelMembers ChannelMember[]
+  sentMessages   Message[] @relation("SentMessages")
+  readReceipts   ReadReceipt[]
+
+
+}
+
+model Channel {
+  id        String   @id @default(uuid())
+  name      String?
+  type      String   @default("direct") // "direct" or "group"
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members   ChannelMember[]
+  messages  Message[]
+}
+
+model ChannelMember {
+  id        String   @id @default(uuid())
+  channelId String
+  userId    String
+  role      String   @default("member") // "admin" or "member"
+  createdAt DateTime @default(now())
+
+  channel   Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  channelId      String
+  senderId       String
+  content        String
+  attachmentUrl  String?
+  replyToId      String?
+  isEdited       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  channel        Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  sender         User     @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  replyTo        Message? @relation("Replies", fields: [replyToId], references: [id])
+  replies        Message[] @relation("Replies")
+  readReceipts   ReadReceipt[]
+}
+
+model ReadReceipt {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+}
+
+model FriendRequest {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  status     String   @default("pending") // pending | accepted | rejected
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  sender   User @relation("sentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("receivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
