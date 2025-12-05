@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "build": "node node_modules/.bin/prisma generate && node node_modules/.bin/prisma db push --accept-data-loss"
+    "postinstall": "prisma generate",
+    "build": "prisma db push --accept-data-loss"
   },
   "keywords": [],
   "author": "",
