@@ -9,6 +9,10 @@ router.use(authMiddleware);
 router.post('/request', friendController.sendRequest);
 router.post('/respond', friendController.respondRequest);
 router.get('/pending', friendController.getPending);
-router.get('/friends', friendController.getFriends);
+router.get('/', friendController.getFriends);
+router.delete('/:friendId', friendController.removeFriend);
+router.post('/block', friendController.blockUser);
+router.delete('/block/:userId', friendController.unblockUser);
+router.get('/blocked', friendController.getBlockedUsers);
 
 module.exports = router;

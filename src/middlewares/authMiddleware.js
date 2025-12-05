@@ -4,6 +4,7 @@ module.exports = (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
+        console.log('Auth Middleware: No token provided');
         return res.status(401).json({ message: 'No token, authorization denied' });
     }
 

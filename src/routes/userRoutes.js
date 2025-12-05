@@ -68,14 +68,48 @@ router.get('/profile', authMiddleware, async (req, res) => {
     }
 });
 
+// Get user by ID (for viewing profiles)
+router.get('/:userId', authMiddleware, async (req, res) => {
+    try {
+        const { userId } = req.params;
+
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                avatar: true,
+                status: true,
+                isOnline: true,
+                lastSeen: true
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+});
+
 // Update user profile
 router.put('/profile', authMiddleware, async (req, res) => {
     try {
         const { name, avatar, status } = req.body;
 
+        // Only include fields that are provided
+        const updateData = {};
+        if (name !== undefined) updateData.name = name;
+        if (avatar !== undefined) updateData.avatar = avatar;
+        if (status !== undefined) updateData.status = status;
+
         const user = await prisma.user.update({
             where: { id: req.user.userId },
-            data: { name, avatar, status },
+            data: updateData,
             select: {
                 id: true,
                 name: true,
@@ -87,6 +121,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
 
         res.json(user);
     } catch (error) {
+        console.error('Profile update error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });

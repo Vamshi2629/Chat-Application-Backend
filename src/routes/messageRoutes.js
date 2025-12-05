@@ -45,6 +45,7 @@ router.get('/:channelId', authMiddleware, async (req, res) => {
 
         res.json(messages.reverse());
     } catch (error) {
+        console.error('Get messages error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -53,7 +54,13 @@ router.get('/:channelId', authMiddleware, async (req, res) => {
 router.post('/:channelId', authMiddleware, async (req, res) => {
     try {
         const { channelId } = req.params;
-        const { content, replyToId } = req.body;
+        const { content, replyToId, attachmentUrl } = req.body;
+
+        console.log('Sending message to channel:', channelId, 'content:', content);
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ message: 'Message content is required' });
+        }
 
         // Verify user is member of channel
         const isMember = await prisma.channelMember.findUnique({
@@ -70,8 +77,9 @@ router.post('/:channelId', authMiddleware, async (req, res) => {
             data: {
                 channelId,
                 senderId: req.user.userId,
-                content,
-                replyToId
+                content: content.trim(),
+                replyToId: replyToId || null,
+                attachmentUrl: attachmentUrl || null
             },
             include: {
                 sender: { select: { id: true, name: true, avatar: true } },
@@ -89,8 +97,31 @@ router.post('/:channelId', authMiddleware, async (req, res) => {
             data: { updatedAt: new Date() }
         });
 
+        // Emit socket event to all users in the channel
+        const io = req.app.get('io');
+        if (io) {
+            // Fetch all channel members to broadcast to them individually
+            const channelMembers = await prisma.channelMember.findMany({
+                where: { channelId },
+                select: { userId: true }
+            });
+
+            channelMembers.forEach(member => {
+                io.to(`user:${member.userId}`).emit('new_message', {
+                    channelId,
+                    message: { ...message, status: 'sent' }
+                });
+            });
+
+            console.log(`Emitted new_message to ${channelMembers.length} members`);
+        } else {
+            console.log('Socket.io not available');
+        }
+
+        console.log('Message sent successfully:', message.id);
         res.status(201).json(message);
     } catch (error) {
+        console.error('Send message error:', error);
         res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
@@ -148,6 +179,15 @@ router.delete('/:messageId', authMiddleware, async (req, res) => {
             where: { id: messageId },
             data: { deletedAt: new Date() }
         });
+
+        // Emit socket event
+        const io = req.app.get('io');
+        if (io) {
+            io.to(message.channelId).emit('message_deleted', {
+                messageId,
+                channelId: message.channelId
+            });
+        }
 
         res.json({ message: 'Message deleted' });
     } catch (error) {

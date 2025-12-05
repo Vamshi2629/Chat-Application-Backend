@@ -15,8 +15,11 @@ const io = new Server(server, {
     }
 });
 
-// Initialize socket handler with JWT auth
+// Make io available to routes
 app.set('io', io);
+
+// Initialize socket handler with io instance
+socketHandler(io);
 
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
