@@ -9,6 +9,16 @@ const transporter = nodemailer.createTransport({
 });
 
 exports.sendOTP = async (email, otp) => {
+    // Debug logging for environment variables (masked)
+    console.log('Attempting to send email...');
+    console.log('EMAIL_USER present:', !!process.env.EMAIL_USER);
+    console.log('EMAIL_PASS present:', !!process.env.EMAIL_PASS);
+
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('CRITICAL: Email credentials missing in environment variables');
+        throw new Error('Server configuration error: Email credentials missing');
+    }
+
     const mailOptions = {
         from: process.env.EMAIL_USER,
         to: email,
@@ -17,10 +27,14 @@ exports.sendOTP = async (email, otp) => {
     };
 
     try {
-        await transporter.sendMail(mailOptions);
+        const info = await transporter.sendMail(mailOptions);
         console.log(`OTP sent to ${email}`);
+        console.log('Message ID:', info.messageId);
     } catch (error) {
-        console.error('Error sending email:', error);
-        throw new Error('Failed to send OTP');
+        console.error('Error sending email detailed:', error);
+        if (error.code === 'EAUTH') {
+            console.error('Authentication failed. Check EMAIL_USER and EMAIL_PASS.');
+        }
+        throw new Error('Failed to send OTP: ' + error.message);
     }
 };
