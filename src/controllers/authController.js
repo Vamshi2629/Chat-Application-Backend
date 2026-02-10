@@ -39,15 +39,11 @@ exports.signup = async (req, res) => {
             },
         });
 
-        // In a real app, you would send the email here.
-        // For now, we'll log it or use a mock if credentials aren't set.
-        if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-            await sendOTP(email, otp);
-        } else {
-            console.log(`[DEV] OTP for ${email}: ${otp}`);
-        }
-
-        res.status(201).json({ message: 'User created. Please verify your email.', userId: user.id });
+        res.status(201).json({
+            message: 'User created. Please verify your email.',
+            userId: user.id,
+            otp: otp // Return OTP so frontend can send it via EmailJS
+        });
     } catch (error) {
         if (error instanceof z.ZodError) {
             return res.status(400).json({ errors: error.errors });
